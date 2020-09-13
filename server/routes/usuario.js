@@ -6,7 +6,7 @@ const Usuario = require('../models/usuario');
 
 const app = express();
 
-app.get('/usuarios', (req, resp) => {
+app.get('/usuarios', (req, res) => {
     let desde = req.query.desde || 0;
     desde = Number(desde);
 
