@@ -12,6 +12,7 @@ app.use(bodyParser.json())
 
 app.use(require('./routes/usuario'))
 
+console.log(process.env.URLDB)
 mongoose.connect(process.env.URLDB, { useNewUrlParser: true, useCreateIndex: true });
 
 app.listen(process.env.PORT, () => {
