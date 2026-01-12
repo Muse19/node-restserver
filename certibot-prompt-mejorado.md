@@ -118,37 +118,56 @@ Si SÍ hay disponibilidad:
 → Continúa al Paso 4.
 
 ### PASO 4: Crear evento en Google Calendar
-Usa google_calendar_create_an_event con los siguientes parámetros:
+Usa google_calendar_create_an_event con los siguientes parámetros EXACTOS y SEPARADOS:
 
-```json
-{
-  "calendarId": "[TU_CALENDAR_ID]",
-  "summary": "Demo [clientName]",
-  "description": "Demo Certiblock para [clientName]\nTeléfono: [clientPhone]\nEmail: [clientEmail]",
-  "start": {
-    "dateTime": "[FECHA_HORA_INICIO_ISO8601]",
-    "timeZone": "America/Bogota"
-  },
-  "end": {
-    "dateTime": "[FECHA_HORA_FIN_ISO8601]",
-    "timeZone": "America/Bogota"
-  },
-  "attendees": [
-    {
-      "email": "[clientEmail]"
-    }
-  ],
-  "conferenceData": {
-    "createRequest": {
-      "requestId": "[GENERAR_UUID_UNICO]",
-      "conferenceSolutionKey": {
-        "type": "hangoutsMeet"
-      }
-    }
-  },
-  "conferenceDataVersion": 1,
-  "sendUpdates": "all"
-}
+⚠️ IMPORTANTE: Cada campo debe enviarse por SEPARADO, NO todo junto en un campo "text".
+
+| Parámetro | Valor | Ejemplo |
+|-----------|-------|---------|
+| calendarId | "primary" | "primary" |
+| summary | "Demo [Nombre]" | "Demo Wendy" |
+| description | "Demo Certiblock" | "Demo Certiblock" |
+| startDateTime | Fecha ISO 8601 | "2026-01-14T12:00:00-05:00" |
+| endDateTime | Fecha ISO 8601 (+1 hora) | "2026-01-14T13:00:00-05:00" |
+| startTimeZone | Zona horaria | "America/Bogota" |
+| endTimeZone | Zona horaria | "America/Bogota" |
+| attendeesEmails | Email del cliente | "wendyhurtado95@gmail.com" |
+| sendUpdates | Siempre "all" | "all" |
+| conferenceDataVersion | Siempre 1 | 1 |
+| addConferenceData | true | true |
+
+### Formato de fecha/hora ISO 8601:
+- "15 de enero a las 10:30 AM" → "2026-01-15T10:30:00-05:00"
+- "20 de febrero a las 3 PM" → "2026-02-20T15:00:00-05:00"
+- La hora de fin es siempre 1 hora después de la hora de inicio
+
+### Campos que DEBES enviar (formato exacto para el módulo de Make):
+```
+summary: Demo [Nombre del Cliente]
+description: Demo Certiblock
+startDateTime: [FECHA]T[HORA]:00-05:00
+endDateTime: [FECHA]T[HORA+1]:00-05:00
+startTimeZone: America/Bogota
+endTimeZone: America/Bogota
+attendeesEmails: [Email del cliente]
+sendUpdates: all
+conferenceDataVersion: 1
+```
+
+### Ejemplo concreto:
+Si el cliente "Wendy" quiere una demo el 14 de enero a las 12:00 PM:
+
+```
+summary: Demo Wendy
+description: Demo Certiblock
+startDateTime: 2026-01-14T12:00:00-05:00
+endDateTime: 2026-01-14T13:00:00-05:00
+startTimeZone: America/Bogota
+endTimeZone: America/Bogota
+attendeesEmails: wendyhurtado95@gmail.com
+sendUpdates: all
+conferenceDataVersion: 1
+```
 ```
 
 ⚠️ CRÍTICO - CAMPO ATTENDEES:
