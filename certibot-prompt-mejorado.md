@@ -259,6 +259,197 @@ Antes de probar el agente, verifica:
 - [ ] El parámetro `conferenceDataVersion` está configurado como 1
 - [ ] La zona horaria está correctamente configurada
 
+---
+
+## 🚨 SOLUCIÓN: Invitados (Attendees) No Se Agregan al Evento
+
+### Causas Comunes y Soluciones
+
+#### ❌ Causa 1: Formato incorrecto del parámetro `attendees`
+
+El parámetro `attendees` debe ser un **array de objetos**, no un string simple.
+
+**Formato INCORRECTO:**
+```json
+"attendees": "cliente@email.com"
+```
+
+**Formato INCORRECTO:**
+```json
+"attendees": ["cliente@email.com"]
+```
+
+**Formato CORRECTO:**
+```json
+"attendees": [
+  {
+    "email": "cliente@email.com"
+  }
+]
+```
+
+---
+
+#### ❌ Causa 2: Falta el parámetro `sendUpdates`
+
+Para que los invitados aparezcan y reciban notificación, debes incluir:
+
+```json
+"sendUpdates": "all"
+```
+
+Opciones disponibles:
+- `"all"` - Envía notificaciones a todos los invitados
+- `"externalOnly"` - Solo envía a invitados externos
+- `"none"` - No envía notificaciones (pero SÍ debe agregar el invitado)
+
+---
+
+#### ❌ Causa 3: Configuración incorrecta en Make (MUY COMÚN)
+
+En Make, cuando usas el módulo `google_calendar_create_an_event` dentro de un **AI Agent**, el campo `attendees` puede requerir configuración especial:
+
+**Opción A: Formato JSON string en el prompt**
+
+En tu prompt, especifica que el agente debe formatear attendees así:
+```
+"attendees": [{"email": "EMAIL_DEL_CLIENTE"}]
+```
+
+**Opción B: Usar el módulo de Make directamente (no a través del agente)**
+
+Si el agente no está pasando correctamente los attendees, considera:
+1. Que el agente solo recopile la información
+2. Usar un módulo separado de Google Calendar después del agente para crear el evento
+
+---
+
+#### ❌ Causa 4: La conexión de Google Calendar no tiene permisos suficientes
+
+Verifica que la conexión OAuth de Google Calendar tenga estos scopes:
+- `https://www.googleapis.com/auth/calendar`
+- `https://www.googleapis.com/auth/calendar.events`
+
+**Cómo verificar:**
+1. Ve a Connections en Make
+2. Busca tu conexión de Google Calendar
+3. Re-autoriza la conexión si es necesario
+
+---
+
+#### ❌ Causa 5: Restricciones de dominio en Google Workspace
+
+Si usas Google Workspace (cuenta empresarial), puede haber restricciones que impidan agregar invitados externos.
+
+**Solución:**
+1. Ve a Google Admin Console
+2. Apps > Google Workspace > Calendar
+3. Configuración de uso compartido > Permitir invitaciones externas
+
+---
+
+### 🔧 SOLUCIÓN RECOMENDADA PARA MAKE
+
+Dado que el problema persiste, te recomiendo esta arquitectura en Make:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ESCENARIO EN MAKE                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. [Webhook WhatsApp] → Recibe mensaje                        │
+│           ↓                                                     │
+│  2. [AI Agent] → Procesa conversación                          │
+│           │      - Detecta intención                           │
+│           │      - Solicita fecha/hora                         │
+│           │      - Busca en Airtable                           │
+│           │      - Verifica disponibilidad                     │
+│           │      - RETORNA datos estructurados (NO crea evento)│
+│           ↓                                                     │
+│  3. [Router] → ¿El agente indica crear evento?                 │
+│           ↓ SÍ                                                  │
+│  4. [Google Calendar - Create Event] ← Módulo DIRECTO          │
+│           │  - Summary: {{agent.clientName}}                   │
+│           │  - Start: {{agent.startDateTime}}                  │
+│           │  - End: {{agent.endDateTime}}                      │
+│           │  - Attendees: {{agent.clientEmail}}  ← MAPEO DIRECTO│
+│           ↓                                                     │
+│  5. [WhatsApp - Send Message] → Confirma al usuario            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**¿Por qué funciona mejor?**
+- El módulo de Google Calendar de Make maneja correctamente el campo `attendees` cuando lo configuras directamente
+- El AI Agent a veces no pasa correctamente estructuras de datos complejas (arrays de objetos)
+
+---
+
+### 🔧 ALTERNATIVA: Forzar formato en el Prompt del Agente
+
+Si quieres mantener la creación del evento dentro del agente, modifica las instrucciones así:
+
+```
+### PASO 4: Crear evento en Google Calendar
+
+IMPORTANTE - FORMATO EXACTO PARA ATTENDEES:
+Cuando llames a google_calendar_create_an_event, el campo attendees DEBE enviarse 
+exactamente en este formato JSON:
+
+{
+  "calendarId": "primary",
+  "summary": "Demo [Nombre del Cliente]",
+  "description": "Demo Certiblock",
+  "start": {
+    "dateTime": "[ISO8601]",
+    "timeZone": "America/Bogota"
+  },
+  "end": {
+    "dateTime": "[ISO8601]",
+    "timeZone": "America/Bogota"
+  },
+  "attendees": [
+    {
+      "email": "[COPIAR EXACTAMENTE EL EMAIL DE AIRTABLE]",
+      "responseStatus": "needsAction"
+    }
+  ],
+  "conferenceData": {
+    "createRequest": {
+      "requestId": "meet-[TIMESTAMP]",
+      "conferenceSolutionKey": {
+        "type": "hangoutsMeet"
+      }
+    }
+  },
+  "sendNotifications": true,
+  "sendUpdates": "all"
+}
+
+⚠️ NO modifiques el formato de attendees. Debe ser un array con un objeto que contenga "email".
+⚠️ El campo "sendNotifications": true es OBLIGATORIO para que se agregue el invitado.
+⚠️ El campo "sendUpdates": "all" es OBLIGATORIO.
+```
+
+---
+
+### 📋 Verificación paso a paso
+
+1. **Revisa los logs de Make:**
+   - Ve al historial de ejecuciones
+   - Busca la llamada a `google_calendar_create_an_event`
+   - Verifica qué datos se enviaron exactamente en `attendees`
+
+2. **Verifica la respuesta de Google Calendar:**
+   - En los logs, revisa la respuesta del evento creado
+   - Busca el campo `attendees` en la respuesta
+   - Si está vacío, el problema es el formato de entrada
+
+3. **Prueba manual:**
+   - Crea un evento manualmente usando el módulo de Google Calendar (no el agente)
+   - Agrega un attendee
+   - Si funciona, el problema está en cómo el agente pasa los datos
+
 ## Ejemplo de Flujo Exitoso
 
 ```
